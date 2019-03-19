@@ -87,6 +87,28 @@ def overlay(ctx):  # pragma: no cover
                     util.run_command(cmd, debug=debug)
 
 
+@click.command()
+@click.pass_context
+def remove(ctx):  # pragma: no cover
+    """ Remove gilt dependencies """
+    args = ctx.obj.get('args')
+    filename = args.get('config')
+    _setup(filename)
+
+    for c in config.config(filename):
+        with fasteners.InterProcessLock(c.lock_file):
+            util.print_info('{}:'.format(c.name))
+            if c.dst:
+                msg = '  - deleting {}'.format(c.dst)
+                util.print_info(msg)
+                util.delete(c.dst)
+            else:
+                for conf in c.files:
+                    msg = '  - deleting {}'.format(conf.dst)
+                    util.print_info(msg)
+                    util.delete(conf.dst)
+
+
 def _setup(filename):
     if not os.path.exists(filename):
         msg = 'Unable to find {}. Exiting.'.format(filename)
@@ -99,3 +121,4 @@ def _setup(filename):
 
 
 main.add_command(overlay)
+main.add_command(remove)

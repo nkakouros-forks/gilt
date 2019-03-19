@@ -99,3 +99,13 @@ def copy(src, dst):
             shutil.copy(src, dst)
         else:
             raise
+
+
+def delete(dst):
+    try:
+        shutil.rmtree(dst)
+    except IOError as e:
+        if e.errno == errno.ENOENT:
+            pass
+        else:
+            raise
