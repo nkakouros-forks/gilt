@@ -103,7 +103,10 @@ def copy(src, dst):
 
 def delete(dst):
     try:
-        shutil.rmtree(dst)
+        if os.path.isfile(dst):
+            os.remove(dst)
+        else:
+            shutil.rmtree(dst)
     except IOError as e:
         if e.errno == errno.ENOENT:
             pass
