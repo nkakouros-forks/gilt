@@ -42,6 +42,28 @@ def clone(name, repository, destination, debug=False):
     util.run_command(cmd, debug=debug)
 
 
+def sync(name, destination, version, debug=False):
+    os.chdir(destination)
+    msg = "  - syncing {} with {} of origin".format(name, version)
+    util.print_info(msg)
+    _get_version(version, clean=False, debug=debug)
+
+
+def remote_add(destination, name, url, debug=False):
+    os.chdir(destination)
+    msg = "  - adding {} remote with url {}".format(name, url)
+    util.print_info(msg)
+    try:
+        cmd = sh.git.bake("remote", "remove", name)
+        util.run_command(cmd, debug=debug)
+    except sh.ErrorReturnCode:
+        pass
+    cmd = sh.git.bake("remote", "add", name, url)
+    util.run_command(cmd, debug=debug)
+    cmd = sh.git.bake("fetch", name)
+    util.run_command(cmd, debug=debug)
+
+
 def extract(repository, destination, version, debug=False):
     """Extract the specified repository/version into the directory and return None.
 
@@ -59,7 +81,7 @@ def extract(repository, destination, version, debug=False):
             shutil.rmtree(destination)
 
         os.chdir(repository)
-        _get_version(version, debug)
+        _get_version(version, debug=debug)
         cmd = sh.git.bake(
             "checkout-index", force=True, all=True, prefix=destination
         )
@@ -82,7 +104,7 @@ def overlay(repository, files, version, debug=False):
     """
     with util.saved_cwd():
         os.chdir(repository)
-        _get_version(version, debug)
+        _get_version(version, debug=debug)
 
         for fc in files:
             if "*" in fc.src:
@@ -102,7 +124,7 @@ def overlay(repository, files, version, debug=False):
                 util.print_info(msg)
 
 
-def _get_version(version, debug=False):
+def _get_version(version, clean=True, debug=False):
     """Handle switching to the specified version and return None.
 
     1. Fetch the origin.
@@ -111,6 +133,7 @@ def _get_version(version, debug=False):
     4. Pull the origin when a branch; _not_ a commit id.
 
     :param version: A string containing the branch/tag/sha to be exported.
+    :param clean: An optional bool to toggle running `git clean` before `git pull`
     :param debug: An optional bool to toggle debug output.
     :return: None
     """
@@ -125,11 +148,16 @@ def _get_version(version, debug=False):
         util.run_command(cmd, debug=debug)
     cmd = sh.git.bake("checkout", version, "--")
     util.run_command(cmd, debug=debug)
-    cmd = sh.git.bake("clean", "-d", "-x", "-f")
-    util.run_command(cmd, debug=debug)
-    if _has_branch(version, debug):
-        cmd = sh.git.bake("pull", rebase=True, ff_only=True)
+    if clean:
+        cmd = sh.git.bake("clean", "-d", "-x", "-f")
         util.run_command(cmd, debug=debug)
+    if _has_branch(version, debug):
+        try:
+            cmd = sh.git.bake("pull", rebase=True, ff_only=True)
+            util.run_command(cmd, debug=debug)
+        except sh.ErrorReturnCode:
+            msg = "  - pulling failed, local changes exist?"
+            util.print_warn(msg)
 
 
 def _has_commit(version, debug=False):
